@@ -1,0 +1,146 @@
+
+
+Nacos
+领域模型
+
+数据模型
+Nacos数据模型key由三元组唯一确定，Namespace默认是空串，公共命名空间（public），分组默认是DEFAULT_GROUP
+
+
+在 Nacos Spring Cloud 中，dataId 的完整格式如下：
+
+${prefix}-${spring.profiles.active}.${file-extension}
+
+prefix 默认为 spring.application.name 的值，
+也可以通过配置项 spring.cloud.nacos.config.prefix来配置。
+
+spring.profiles.active 即为当前环境对应的 profile，详情可以参考 Spring Boot文档。 
+注意：当 spring.profiles.active 为空时，对应的连接符 - 也将不存在，
+dataId 的拼接格式变成 ${prefix}.${file-extension}
+
+
+Nacos常用参数
+
+Namespace 和 Group 经常搭配在一块来使用，它俩在功能上也有相似之处，在实际应用中经常傻傻分不清楚它俩的用途。
+
+Namespace 可以用作环境隔离或者多租户隔离
+
+环境隔离：比如设置三个命名空间 production、pre-production 和 dev，分别表示生产环境、预发环境和开发环境，
+如果一个微服务注册到了 dev 环境，那么他无法调用其他环境的服务，因为服务发现机制只会获取到同样注册到 
+dev 环境的服务列表。如果未指定 namespace 则服务会被注册到 public 这个默认 namespace 下。
+
+Group的使用场景非常灵活：
+
+1.环境隔离
+
+
+2.线上测试
+对于涉及到上下游多服务联动的场景，我将线上已部署的待上下游测服务的 group 设置为“group-A”，
+由于这是一个新的独立分组，所以线上的用户流量不会导向到这个 group。
+这样一来，开发人员就可以在不影响线上业务的前提下，通过发送测试请求到“group-A”的机器完成线上测试。
+
+
+
+
+命名空间 -> 分组名称 -> 服务名
+namespace -> group -> service
+
+
+
+
+
+LoadBalancer
+客户端负载均衡组件
+
+一、优点
+相比于服务端负载均衡（劣势：1.网络消耗，多了一次客户端请求网关层的网络开销；2.复杂度和故障率提升）
+
+优点：
+1.网络开销小
+2.配置灵活
+
+
+二、实现原理
+看看 Loadbalancer 是如何通过注解将过滤器添加到 WebClient 对象中的，这个过程分为三步。
+1.声明负载均衡过滤器
+ReactorLoadBalancerClientAutoConfiguration 是一个自动装配器类，我们在项目中引入了 WebClient 和 ReactiveLoadBalancer 类之后，
+自动装配流程就开始忙活起来了。在这个过程中，它会初始化一个实现了 ExchangeFilterFunction 的实例，在后面的步骤中，
+该实例将作为过滤器被注入到 WebClient。
+
+2.声明后置处理器
+LoadBalancerBeanPostProcessorAutoConfiguration 是第二个登场的自动装配器，
+它的主要作用是将第一步中创建的 ExchangeFilterFunction 拦截器实例添加到一个后置处理器（LoadBalancerWebClientBuilderBeanPostProcessor）中
+
+
+3.添加过滤器到 WebClient
+LoadBalancerWebClientBuilderBeanPostProcessor 后置处理器开始发挥作用，将过滤器添加到 WebClient 中。
+注意不是所有的 WebClient 都会被注入过滤器，只有被 @Loadbalanced 注解修饰的 WebClient 实例才能享受这个待遇。
+
+三、负载均衡策略
+Loadbalancer 提供了两种内置负载均衡策略。
+1.RandomLoadBalancer：在服务列表中随机挑选一台服务器发起调用，属于拼人品系列；
+2.RoundRobinLoadBalancer：通过内部保存的一个 position 计数器，按照次序从上到下依次调用服务，
+每次调用后计数器 +1，属于排好队一个个来系列。
+
+
+
+四、自定义负载均衡策略
+Loadbalancer 提供了一个顶层的抽象接口 ReactiveLoadBalancer，你可以通过继承这个接口，来实现自定义的负载均衡策略
+
+
+
+OpenFeign
+服务间调用组件
+
+一、优点
+使用 OpenFeign 组件来实现远程调用非常简单，就像我们使用本地方法一样。
+
+二、背后的工作流程
+OpenFeign 使用了一种“动态代理”技术来封装远程服务调用的过程，我们在上面的例子中看到的 helloWorldService 
+其实是一个特殊的接口，它是由 OpenFeign 组件中的 FeignClient 注解所声明的接口，
+
+远程服务调用的信息被写在了 FeignClient 接口中。
+
+
+动态代理
+
+1：在项目启动阶段，OpenFeign 框架会发起一个主动的扫包流程，从指定的目录下扫描并加载所有被 @FeignClient 注解修饰的接口。
+
+2：OpenFeign 会针对每一个 FeignClient 接口生成一个动态代理对象，即图中的 FeignProxyService，
+这个代理对象在继承关系上属于 FeignClient 注解所修饰的接口的实例。
+
+3：这个动态代理对象会被添加到 Spring 上下文中，并注入到对应的服务里，也就是图中的 LocalService 服务。
+
+4：LocalService 会发起底层方法调用。实际上这个方法调用会被 OpenFeign 生成的代理对象接管，
+由代理对象发起一个远程服务调用，并将调用的结果返回给 LocalService。
+
+
+
+三、进阶使用技巧
+1.异常信息排查
+
+日志信息打印：（1）配置文件中指定 FeignClient 接口的日志级别为 Debug
+
+
+2.超时判定
+3.服务降级。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

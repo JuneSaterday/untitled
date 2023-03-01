@@ -7,40 +7,66 @@ public class Account {
         this.balance = balance;
     }
 
+    public Account(Integer balance, Object lock) {
+        this.balance = balance;
+        this.lock = lock;
+    }
+
     private Integer balance;
 
+    private Object lock;
 
-    private void transfer(Account target, Integer amt) {
 
+    /*private synchronized void transfer(Account target, Integer amt) {
         balance = balance - amt;
         target.setBalance(target.getBalance() + amt);
+    }*/
+
+    private synchronized void transfer(Account target, Integer amt) {
+//        synchronized (lock) {
+
+            if (balance > amt) {
+                balance -= amt;
+                target.balance += amt;
+            }
+//        }
     }
 
 
-    public Integer getBalance() {
+    public synchronized Integer getBalance() {
         return balance;
     }
 
-    public void setBalance(Integer balance) {
+    public synchronized void setBalance(Integer balance) {
         this.balance = balance;
     }
 
 
     public static void main(String[] args) {
-        Account from = new Account(100);
-        Account to = new Account(100);
 
+        Object lock = new Object();
+
+        Account a = new Account(200, lock);
+        Account b = new Account(200, lock);
+        Account c = new Account(200, lock);
 
         new Thread(() -> {
-            from.transfer(to, 50);
+            a.transfer(b, 100);
         }).start();
 
         new Thread(() -> {
-            to.setBalance(to.getBalance() + 21);
+            b.transfer(c, 100);
         }).start();
 
 
-        System.out.println("from count balance" + from.getBalance());
-        System.out.println("to count balance" + to.getBalance());
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("A count balance" + a.getBalance());
+        System.out.println("B count balance" + b.getBalance());
+        System.out.println("C count balance" + c.getBalance());
     }
 }
