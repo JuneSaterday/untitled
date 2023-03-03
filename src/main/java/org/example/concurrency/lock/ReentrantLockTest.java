@@ -21,6 +21,21 @@ public class ReentrantLockTest {
         }
     }
 
+
+    public int getInterruptibly() {
+        try {
+            rtl.lockInterruptibly();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            return value;
+        } finally {
+            rtl.unlock();
+        }
+    }
+
     public void addOne() {
         rtl.lock();
 
@@ -40,6 +55,12 @@ public class ReentrantLockTest {
         reentrantLockTest.addOne();
 
         reentrantLockTest.get();
+
+
+
+        int a;
+
+//        System.out.println(a);
 
 
     }

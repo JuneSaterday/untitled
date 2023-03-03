@@ -1,0 +1,35 @@
+
+
+-----
+Queue
+
+入队
+add(e)
+offer(e) queue capacity有限制时，表现比add好
+
+
+移除头元素并返回，元素不存在时，返回值不同
+E remove() throw NoSuchElementException
+E poll() null
+ 
+
+返回头元素，元素不存在时，返回值不同
+E element() throw NoSuchElementException
+E peek() null
+
+
+-------------
+BlockingQueue
+
+
+
+
+入队，阻塞
+put(e)
+
+
+移除并返回头元素，阻塞
+E take()
+
+移除并返回头元素，阻塞一定的时间
+E poll(long timeout, TimeUnit unit)
